@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>智慧图书馆论坛</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+    <script src="https://unpkg.com/element-plus"></script>
+    <script src="https://unpkg.com/@element-plus/icons-vue"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        :root {
+            --el-color-primary: #005A9E; 
+            --theme-bg: #f4f7fb;
+            --glass-bg: rgba(255, 255, 255, 0.85);
+        }
+        
+        /* 页面底层：环境光晕 + 科技点阵 */
+        body { 
+            margin: 0; 
+            background-color: var(--theme-bg); 
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 24px 24px;
+            font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; 
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        /* 纯 CSS 绘制的环境发光球体 */
+        .ambient-glow-1 {
+            position: fixed; top: -10%; left: -5%; width: 50vw; height: 50vw;
+            background: radial-gradient(circle, rgba(0, 90, 158, 0.15) 0%, rgba(255,255,255,0) 70%);
+            z-index: -1; pointer-events: none;
+        }
+        .ambient-glow-2 {
+            position: fixed; bottom: -10%; right: -5%; width: 60vw; height: 60vw;
+            background: radial-gradient(circle, rgba(52, 152, 219, 0.1) 0%, rgba(255,255,255,0) 70%);
+            z-index: -1; pointer-events: none;
+        }
+
+        /* 顶部导航栏：毛玻璃质感与渐变光影 */
+        .el-header {
+            background: linear-gradient(135deg, rgba(0, 62, 112, 0.95) 0%, rgba(0, 90, 158, 0.95) 100%);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 90, 158, 0.2);
+            padding: 0 40px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-logo {
+            font-size: 22px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: 1px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .main-layout {
+            max-width: 1200px;
+            margin: 30px auto;
+            gap: 24px;
+        }
+        
+        /* 左侧菜单：悬浮毛玻璃卡片 */
+        .sidebar-card {
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 32px rgba(149, 157, 165, 0.15);
+            position: sticky;
+            top: 90px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+        }
+        
+        /* 帖子列表卡片：现代化圆角与轻量阴影 */
+        .post-card {
+            margin-bottom: 24px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.6);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            padding: 12px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+        }
+        .post-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 16px 32px rgba(0, 90, 158, 0.1);
+            border-color: rgba(0, 90, 158, 0.2);
+        }
+        
+        /* 交互区域包裹 */
+        .post-clickable-area {
+            cursor: pointer;
+            padding: 12px;
+            border-radius: 12px;
+            transition: background 0.3s ease;
+        }
+        .post-clickable-area:hover {
+            background: rgba(240, 244, 248, 0.6);
+        }
+        
+        .post-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: #1d2129;
+            margin: 0 0 12px 0;
+            line-height: 1.4;
+            transition: color 0.2s;
+        }
+        .post-clickable-area:hover .post-title {
+            color: var(--el-color-primary);
+        }
+        
+        /* 摘要截断 */
+        .post-excerpt {
+            color: #4e5969;
+            line-height: 1.7;
+            font-size: 15px;
+            margin-bottom: 16px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        /* 阅读全文按钮 */
+        .read-more-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--el-color-primary);
+            background: rgba(0, 90, 158, 0.08);
+            padding: 6px 14px;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+        }
+        .post-clickable-area:hover .read-more-btn {
+            background: var(--el-color-primary);
+            color: white;
+            transform: translateX(4px);
+        }
+        
+        /* 信息条样式 */
+        .post-meta {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            font-size: 13px;
+            color: #6b7280;
+            background: rgba(243, 244, 246, 0.7);
+            padding: 10px 16px;
+            border-radius: 10px;
+            margin-top: 12px;
+            margin-bottom: 16px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .post-footer {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-top: 1px dashed #e5e7eb;
+            padding-top: 16px;
+            margin-top: 8px;
+            padding-left: 12px;
+        }
+        
+        /* 绝对居中投票按钮 */
+        .vote-btn {
+            width: 88px !important;
+            height: 36px !important;
+            border-radius: 8px !important;
+            padding: 0 !important;
+        }
+        .vote-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            gap: 6px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .vote-inner .el-icon {
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .system-notice {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid #dbeafe;
+            border-left: 5px solid #005A9E;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            border-radius: 12px;
+            color: #005A9E;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 4px 16px rgba(0, 90, 158, 0.05);
+            font-weight: 500;
+        }
+        
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            padding: 16px 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.02);
+            border: 1px solid rgba(255,255,255,0.6);
+        }
+
+        /* 详情弹窗美化 */
+        .detail-meta {
+            margin: 20px 0;
+            padding: 16px 20px;
+            background: #f8fafc;
+            border-radius: 12px;
+            border-left: 4px solid var(--el-color-primary);
+        }
+        .detail-content {
+            font-size: 16px;
+            line-height: 1.8;
+            color: #334155;
+            white-space: pre-wrap;
+            margin-bottom: 40px;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="ambient-glow-1"></div>
+    <div class="ambient-glow-2"></div>
+
+    <el-container style="min-height: 100vh;">
+        <el-header height="68px">
+            <div class="header-logo">
+                <el-icon size="28"><DataBoard /></el-icon>
+                智慧图书馆交互中枢
+            </div>
+            <div>
+                <template v-if="!isLoggedIn">
+                    <el-button round @click="loginDialogVisible = true" style="font-weight: bold;">读者登录</el-button>
+                    <el-button round type="primary" plain @click="registerDialogVisible = true" style="margin-left: 12px; font-weight: bold; background: rgba(255,255,255,0.95); border: none;">注册账号</el-button>
+                </template>
+                <template v-else>
+                    <el-button color="rgba(255,255,255,0.15)" style="color: white; border: 1px solid rgba(255,255,255,0.4); font-weight: 600;" round @click="postDialogVisible = true">
+                        <el-icon style="margin-right: 6px;"><EditPen /></el-icon>发布新动态
+                    </el-button>
+                    <el-dropdown @command="handleCommand" style="margin-left: 24px; cursor: pointer;">
+                        <span class="el-dropdown-link" style="color: white; display: flex; align-items: center; gap: 8px; font-weight: 500;">
+                            <el-avatar :size="34" src="https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png" style="border: 2px solid rgba(255,255,255,0.4);"></el-avatar>
+                            个人中心
+                            <el-icon><ArrowDown /></el-icon>
+                        </span>
+                        <template #dropdown>
+                            <el-dropdown-menu>
+                                <el-dropdown-item command="logout" divided>安全退出</el-dropdown-item>
+                            </el-dropdown-menu>
+                        </template>
+                    </el-dropdown>
+                </template>
+            </div>
+        </el-header>
+
+        <el-container class="main-layout">
+            <el-aside width="250px">
+                <el-card class="sidebar-card" shadow="never" :body-style="{ padding: '12px 0' }">
+                    <div style="padding: 12px 24px; color: #64748b; font-size: 13px; font-weight: bold; letter-spacing: 1px;">
+                        <el-icon style="vertical-align: -2px; margin-right: 6px;"><ChatSquare /></el-icon> 交流版块
+                    </div>
+                    <el-menu 
+                        :default-active="currentCommunityId" 
+                        @select="handleCommunitySelect" 
+                        style="border-right: none; background: transparent;">
+                        
+                        <el-menu-item index="0">
+                            <el-icon><Monitor /></el-icon>
+                            <span style="font-weight: 600;">全部动态</span>
+                        </el-menu-item>
+                        
+                        <el-menu-item v-for="c in communities" :key="c.id" :index="c.id.toString()">
+                            <el-icon><ChatDotRound /></el-icon>
+                            <span style="font-weight: 500;">{{ c.name }}</span>
+                        </el-menu-item>
+                    </el-menu>
+                </el-card>
+            </el-aside>
+
+            <el-main style="padding: 0;">
+                <div class="system-notice">
+                    <el-icon size="20"><BellFilled /></el-icon>
+                    系统公告：环境监测系统实时运行中，请勿遮挡桌面压力传感器。祝大家学习高效！
+                </div>
+
+                <div class="list-header">
+                    <span style="font-weight: 800; color: #1e293b; font-size: 17px; display: flex; align-items: center; gap: 8px;">
+                        <el-icon color="#005A9E"><ChatLineRound /></el-icon> 社区动态
+                    </span>
+                    <el-radio-group v-model="currentOrder" @change="handleOrderChange" size="default">
+                        <el-radio-button label="time">最新发布</el-radio-button>
+                        <el-radio-button label="score">最热讨论</el-radio-button>
+                    </el-radio-group>
+                </div>
+
+                <div v-if="posts.length > 0">
+                    <el-card v-for="post in posts" :key="post.id" class="post-card" shadow="never">
+                        
+                        <div class="post-clickable-area" @click="openPostDetail(post)">
+                            <h3 class="post-title">{{ post.title }}</h3>
+                            <div class="post-excerpt">{{ post.content }}</div>
+                            <div class="read-more-btn">
+                                阅读全文 <el-icon><Right /></el-icon>
+                            </div>
+                        </div>
+
+                        <div class="post-meta">
+                            <span style="display: flex; align-items: center; gap: 6px;"><el-icon><User /></el-icon> 作者: {{ post.author_name || post.author_id }}</span>
+                            <span style="display: flex; align-items: center; gap: 6px;"><el-icon><CollectionTag /></el-icon> 节点: {{ post.community ? post.community.name : post.community_id }}</span>
+                        </div>
+                        
+                        <div class="post-footer">
+                            <el-button 
+                                class="vote-btn" 
+                                :type="userVotes[post.id] === 1 ? 'primary' : ''" 
+                                :plain="userVotes[post.id] !== 1"
+                                @click="handleVote(post.id, 1)">
+                                <div class="vote-inner">
+                                    <el-icon><CaretTop /></el-icon>
+                                    <span>赞同</span>
+                                </div>
+                            </el-button>
+                            
+                            <span style="font-size: 17px; font-weight: 900; color: #005A9E; min-width: 48px; text-align: center; letter-spacing: 1px;">
+                                {{ post.vote_num || 0 }}
+                            </span>
+                            
+                            <el-button 
+                                class="vote-btn" 
+                                :type="userVotes[post.id] === -1 ? 'primary' : ''" 
+                                :plain="userVotes[post.id] !== -1"
+                                @click="handleVote(post.id, -1)">
+                                <div class="vote-inner">
+                                    <el-icon><CaretBottom /></el-icon>
+                                    <span>反对</span>
+                                </div>
+                            </el-button>
+                        </div>
+                    </el-card>
+                </div>
+                
+                <el-empty v-else description="当前版块暂无讨论数据，快来发布第一条动态吧！" style="background: var(--glass-bg); backdrop-filter: blur(10px); border-radius: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.02);"></el-empty>
+            </el-main>
+        </el-container>
+    </el-container>
+
+    <el-dialog v-model="postDetailVisible" :title="currentViewPost?.title" width="65%" top="8vh" style="border-radius: 16px;">
+        <template #header>
+            <div style="font-size: 24px; font-weight: 800; color: #0f172a; line-height: 1.4; padding-right: 30px;">
+                {{ currentViewPost?.title }}
+            </div>
+        </template>
+        
+        <div class="detail-meta">
+            <el-row :gutter="20">
+                <el-col :span="8">
+                    <div style="color: #64748b; font-size: 13px; font-weight: 600;">作者终端</div>
+                    <div style="font-weight: bold; margin-top: 6px; font-size: 15px; color: #334155;">{{ currentViewPost?.author_name || currentViewPost?.author_id }}</div>
+                </el-col>
+                <el-col :span="8">
+                    <div style="color: #64748b; font-size: 13px; font-weight: 600;">归属节点</div>
+                    <div style="font-weight: bold; margin-top: 6px;">
+                        <el-tag size="default" effect="light" round>{{ currentViewPost?.community ? currentViewPost.community.name : currentViewPost?.community_id }}</el-tag>
+                    </div>
+                </el-col>
+                <el-col :span="8">
+                    <div style="color: #64748b; font-size: 13px; font-weight: 600;">共识热度</div>
+                    <div style="font-weight: 900; margin-top: 6px; font-size: 16px; color: #005A9E;">{{ currentViewPost?.vote_num || 0 }} 赞同</div>
+                </el-col>
+            </el-row>
+        </div>
+
+        <div class="detail-content">
+            {{ currentViewPost?.content }}
+        </div>
+        
+        <template #footer>
+            <el-button @click="postDetailVisible = false" round size="large" style="font-weight: bold;">关闭阅读窗口</el-button>
+        </template>
+    </el-dialog>
+
+    <el-dialog v-model="loginDialogVisible" title="身份接入验证" width="400px" center style="border-radius: 16px;">
+        <el-form :model="loginForm" label-width="70px" style="margin-top: 20px;">
+            <el-form-item label="账号">
+                <el-input v-model="loginForm.username" placeholder="请输入读者账号" prefix-icon="User" size="large"></el-input>
+            </el-form-item>
+            <el-form-item label="密码">
+                <el-input type="password" v-model="loginForm.password" placeholder="请输入密码" show-password prefix-icon="Lock" size="large" @keyup.enter="handleLogin"></el-input>
+            </el-form-item>
+        </el-form>
+        <template #footer>
+            <el-button @click="loginDialogVisible = false" round>取消</el-button>
+            <el-button type="primary" @click="handleLogin" round style="width: 130px; font-weight: bold;">确认接入</el-button>
+        </template>
+    </el-dialog>
+
+    <el-dialog v-model="registerDialogVisible" title="创建新节点身份" width="420px" center style="border-radius: 16px;">
+        <el-form :model="registerForm" label-width="80px" style="margin-top: 20px;">
+            <el-form-item label="设置账号">
+                <el-input v-model="registerForm.username" placeholder="请输入用户名" prefix-icon="User" size="large"></el-input>
+            </el-form-item>
+            <el-form-item label="设置密码">
+                <el-input type="password" v-model="registerForm.password" placeholder="请输入密码" show-password prefix-icon="Lock" size="large"></el-input>
+            </el-form-item>
+            <el-form-item label="确认密码">
+                <el-input type="password" v-model="registerForm.re_password" placeholder="请再次输入密码" show-password prefix-icon="Lock" size="large" @keyup.enter="handleRegister"></el-input>
+            </el-form-item>
+        </el-form>
+        <template #footer>
+            <el-button @click="registerDialogVisible = false" round>取消</el-button>
+            <el-button type="primary" @click="handleRegister" round style="width: 130px; font-weight: bold;">立即创建</el-button>
+        </template>
+    </el-dialog>
+
+    <el-dialog v-model="postDialogVisible" title="发布数据流" width="550px" style="border-radius: 16px;">
+        <el-form :model="postForm" label-position="top">
+            <el-form-item label="选择目标节点">
+                <el-select v-model="postForm.community_id" placeholder="请选择帖子所属的版块" style="width: 100%;" size="large">
+                    <el-option v-for="c in communities" :key="c.id" :label="c.name" :value="c.id"></el-option>
+                </el-select>
+            </el-form-item>
+            <el-form-item label="标题概述">
+                <el-input v-model="postForm.title" placeholder="一句话概括你的主题（例如：二楼自习室寻物）" maxlength="50" show-word-limit size="large"></el-input>
+            </el-form-item>
+            <el-form-item label="数据正文">
+                <el-input type="textarea" :rows="6" v-model="postForm.content" placeholder="展开描述你的想法、问题或反馈..."></el-input>
+            </el-form-item>
+        </el-form>
+        <template #footer>
+            <el-button @click="postDialogVisible = false" round>取消</el-button>
+            <el-button type="primary" @click="handleCreatePost" round style="width: 140px; font-weight: bold;"><el-icon style="margin-right: 6px;"><Position /></el-icon>上传至云端</el-button>
+        </template>
+    </el-dialog>
+</div>
+
+<script>
+    const { createApp, ref, onMounted } = Vue;
+    const API_BASE_URL = '/api/v1';
+
+    axios.interceptors.request.use(config => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`; 
+        }
+        return config;
+    });
+
+    const app = createApp({
+        setup() {
+            const isLoggedIn = ref(false);
+            const loginDialogVisible = ref(false);
+            const registerDialogVisible = ref(false); 
+            const postDialogVisible = ref(false);
+            
+            const postDetailVisible = ref(false);
+            const currentViewPost = ref(null);
+            
+            const loginForm = ref({ username: '', password: '' });
+            const registerForm = ref({ username: '', password: '', re_password: '' }); 
+            const postForm = ref({ title: '', content: '', community_id: null });
+
+            const communities = ref([]);
+            const posts = ref([]);
+            const currentCommunityId = ref('0');
+            const currentOrder = ref('time');
+            const userVotes = ref({}); 
+
+            const checkLogin = () => {
+                const token = localStorage.getItem('token');
+                isLoggedIn.value = !!token;
+            };
+
+            const handleLogin = async () => {
+                try {
+                    const res = await axios.post(`${API_BASE_URL}/login`, loginForm.value);
+                    if (res.data.code === 1000) { 
+                        localStorage.setItem('token', res.data.data);
+                        isLoggedIn.value = true;
+                        loginDialogVisible.value = false;
+                        ElementPlus.ElMessage.success('连接成功，欢迎接入');
+                        fetchCommunities();
+                        fetchPosts(); 
+                    } else {
+                        ElementPlus.ElMessage.error(res.data.msg || '身份验证失败');
+                    }
+                } catch (error) {
+                    ElementPlus.ElMessage.error('网络连接异常');
+                }
+            };
+
+            const handleRegister = async () => {
+                if (!registerForm.value.username || !registerForm.value.password || !registerForm.value.re_password) {
+                    ElementPlus.ElMessage.warning('请将数据填写完整');
+                    return;
+                }
+                if (registerForm.value.password !== registerForm.value.re_password) {
+                    ElementPlus.ElMessage.warning('两次输入的密钥不一致');
+                    return;
+                }
+                try {
+                    const res = await axios.post(`${API_BASE_URL}/signup`, registerForm.value);
+                    if (res.data.code === 1000) {
+                        ElementPlus.ElMessage.success('节点创建成功！请接入。');
+                        registerDialogVisible.value = false;
+                        registerForm.value = { username: '', password: '', re_password: '' };
+                        loginForm.value.username = registerForm.value.username;
+                        loginDialogVisible.value = true;
+                    } else {
+                        let errorMsg = '创建失败';
+                        if (typeof res.data.msg === 'string') errorMsg = res.data.msg;
+                        else if (typeof res.data.msg === 'object') errorMsg = Object.values(res.data.msg)[0] || '参数错误';
+                        ElementPlus.ElMessage.error(errorMsg);
+                    }
+                } catch (error) {
+                    ElementPlus.ElMessage.error('请求异常');
+                }
+            };
+
+            const handleCommand = (command) => {
+                if(command === 'logout') {
+                    localStorage.removeItem('token');
+                    isLoggedIn.value = false;
+                    communities.value = [];
+                    posts.value = [];
+                    userVotes.value = {}; 
+                    currentCommunityId.value = '0';
+                    ElementPlus.ElMessage.info('节点已安全离线');
+                }
+            };
+
+            const fetchCommunities = async () => {
+                if (!isLoggedIn.value) return; 
+                try {
+                    const res = await axios.get(`${API_BASE_URL}/community`);
+                    if (res.data.code === 1000) {
+                        communities.value = res.data.data.map(item => ({
+                            id: item.community_id || item.id,
+                            name: item.community_name || item.name
+                        }));
+                    }
+                } catch (error) {
+                    console.error('节点数据加载异常');
+                }
+            };
+
+            const fetchPosts = async () => {
+                if (!isLoggedIn.value) return;
+                try {
+                    let url = `${API_BASE_URL}/posts2?page=1&size=20&order=${currentOrder.value}`;
+                    if (currentCommunityId.value !== '0') {
+                        url += `&community_id=${currentCommunityId.value}`;
+                    }
+                    const res = await axios.get(url);
+                    if (res.data.code === 1000) {
+                        posts.value = res.data.data || []; 
+                    }
+                } catch (error) {
+                    console.error('信息流加载异常');
+                }
+            };
+
+            const handleCommunitySelect = (index) => {
+                currentCommunityId.value = index;
+                fetchPosts();
+            };
+
+            const handleOrderChange = (val) => {
+                currentOrder.value = val;
+                fetchPosts();
+            };
+            
+            const openPostDetail = (post) => {
+                currentViewPost.value = post;
+                postDetailVisible.value = true;
+            };
+
+            const handleCreatePost = async () => {
+                if (!postForm.value.community_id || !postForm.value.title || !postForm.value.content) {
+                    ElementPlus.ElMessage.warning('请将数据表单填写完整');
+                    return;
+                }
+                try {
+                    const payload = {
+                        title: postForm.value.title,
+                        content: postForm.value.content,
+                        community_id: String(postForm.value.community_id) 
+                    };
+                    const res = await axios.post(`${API_BASE_URL}/post`, payload);
+                    if (res.data.code === 1000) {
+                        ElementPlus.ElMessage.success('数据流已上传云端！');
+                        postDialogVisible.value = false;
+                        postForm.value = { title: '', content: '', community_id: null };
+                        if (currentOrder.value !== 'time') currentOrder.value = 'time'; 
+                        else fetchPosts();
+                    } else {
+                        ElementPlus.ElMessage.error(res.data.msg || '上传失败');
+                    }
+                } catch (error) {
+                    ElementPlus.ElMessage.error('请求异常');
+                }
+            };
+
+            const handleVote = async (postId, voteValue) => {
+                if (!isLoggedIn.value) {
+                    ElementPlus.ElMessage.warning('未授权终端，请先登录');
+                    return;
+                }
+                if (userVotes.value[postId] === voteValue) {
+                    const typeStr = voteValue === 1 ? '赞同' : '反对';
+                    ElementPlus.ElMessage.warning(`无法重复提交${typeStr}指令`);
+                    return;
+                }
+                try {
+                    const payload = { post_id: String(postId), vote_info: String(voteValue) };
+                    const res = await axios.post(`${API_BASE_URL}/vote`, payload);
+                    if (res.data.code === 1000) {
+                        ElementPlus.ElMessage.success('共识达成');
+                        userVotes.value[postId] = voteValue;
+                        fetchPosts(); 
+                        
+                        if (postDetailVisible.value && currentViewPost.value && currentViewPost.value.id === postId) {
+                             currentViewPost.value.vote_num += voteValue;
+                        }
+                    } else {
+                        ElementPlus.ElMessage.error(res.data.msg || '操作被拒绝');
+                    }
+                } catch (error) {
+                    ElementPlus.ElMessage.error('网络通讯异常');
+                }
+            };
+
+            onMounted(() => {
+                checkLogin();
+                if (isLoggedIn.value) {
+                    fetchCommunities();
+                    fetchPosts();
+                }
+            });
+
+            return {
+                isLoggedIn, loginDialogVisible, registerDialogVisible, postDialogVisible, postDetailVisible,
+                loginForm, registerForm, postForm, currentViewPost,
+                communities, posts, currentCommunityId, currentOrder, userVotes,
+                handleLogin, handleRegister, handleCommand, handleCommunitySelect, handleCreatePost,
+                handleOrderChange, handleVote, openPostDetail
+            };
+        }
+    });
+
+    for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+        app.component(key, component);
+    }
+    app.use(ElementPlus).mount('#app');
+</script>
+</body>
+</html>

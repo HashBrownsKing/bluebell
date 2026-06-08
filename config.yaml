@@ -1,0 +1,31 @@
+name: "bluebell"
+mode: "dev" # 运行模式：dev=开发环境（还有prod=生产环境/test=测试环境）
+port: 8081
+version: "0.0.0.1"
+start_time: "2026-05-15"
+machine_id: 1
+  
+log:
+  level: "debug"
+  filename: "bluebell.log"
+  max_size: 200
+  max_age: 30
+  max_backups: 8
+
+mysql:
+  host: "127.0.0.1"
+  port: 13306
+  user: "root"
+  password: "123456"
+  dbname: "bluebell"
+  max_open_connects: 200
+  max_idle_connects: 50
+  max_life_time: 6 # hour
+  max_idle_time: 3 # hour
+
+redis:
+  host: "127.0.0.1"
+  port: 6379
+  db: 0
+  pool_size: 100
+  password: ""
